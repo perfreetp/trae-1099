@@ -445,6 +445,9 @@ class ParkingLotSimulator {
             }
         } else {
             this.selectedItems = clickedItem ? [clickedItem] : [];
+            if (this.highlightedItems.length > 0) {
+                this.highlightedItems = [];
+            }
         }
         
         this.updatePropertiesPanel();
@@ -607,11 +610,11 @@ class ParkingLotSimulator {
                     <button class="prop-delete-btn" onclick="window.app.deleteSelected()">删除</button>
                 </div>
             `;
-        } else if (['entrance', 'exit', 'gate', 'camera'].includes(item.type)) {
+        } else if (['entrance', 'exit', 'gate', 'camera'].includes(item.objType)) {
             const typeNames = { entrance: '入口', exit: '出口', gate: '道闸', camera: '摄像机' };
             html = `
                 <div class="form-group">
-                    <label>${typeNames[item.type]}名称</label>
+                    <label>${typeNames[item.objType]}名称</label>
                     <input type="text" id="propMarkerName" value="${item.name || ''}">
                 </div>
                 <div class="prop-actions">
@@ -729,6 +732,7 @@ class ParkingLotSimulator {
             this.cameras.splice(item.index, 1);
         }
         this.selectedItems = [];
+        this.highlightedItems = [];
         this.updatePropertiesPanel();
         this.render();
         this.updateStats();
@@ -739,7 +743,7 @@ class ParkingLotSimulator {
         
         const sorted = [...this.selectedItems].sort((a, b) => {
             const order = { parking: 0, zone: 1, road: 2, entrance: 3, exit: 4, gate: 5, camera: 6 };
-            return (order[b.type] || 0) - (order[a.type] || 0) || b.index - a.index;
+            return (order[b.objType] || 0) - (order[a.objType] || 0) || b.index - a.index;
         });
         
         sorted.forEach(item => {
@@ -768,6 +772,7 @@ class ParkingLotSimulator {
         });
         
         this.selectedItems = [];
+        this.highlightedItems = [];
         this.updatePropertiesPanel();
         this.saveState();
         this.render();
@@ -776,6 +781,7 @@ class ParkingLotSimulator {
     
     clearSelection() {
         this.selectedItems = [];
+        this.highlightedItems = [];
         this.updatePropertiesPanel();
         this.render();
     }
@@ -1557,7 +1563,7 @@ class ParkingLotSimulator {
             parseFloat(document.getElementById('peakTraffic').value) : 
             parseFloat(document.getElementById('offPeakTraffic').value);
         
-        if (Math.random() < trafficRate / 60 / 60 * this.simulationSpeed) {
+        if (this.entrances.length > 0 && Math.random() < trafficRate / 60 / 60 * this.simulationSpeed) {
             this.addSimCar();
         }
         
@@ -1568,12 +1574,13 @@ class ParkingLotSimulator {
         const empty = this.parkingSpots.length - occupied;
         const queuing = this.simCars.filter(c => c.queuing).length;
         const blocked = this.simCars.filter(c => c.blocked).length;
+        const cannotExit = this.simCars.filter(c => c.cannotExit).length;
         
         document.getElementById('simCars').textContent = occupied;
         document.getElementById('simEmpty').textContent = empty;
         document.getElementById('simEntered').textContent = this.simStats.entered;
         document.getElementById('simExited').textContent = this.simStats.exited;
-        document.getElementById('simQueue').textContent = queuing + blocked;
+        document.getElementById('simQueue').textContent = queuing + blocked + cannotExit;
         
         let status = 'running';
         let statusText = '运行中';
@@ -1583,7 +1590,10 @@ class ParkingLotSimulator {
         } else if (this.parkingSpots.length > 0 && this.roads.length === 0) {
             status = 'no-road';
             statusText = '无通行通道';
-        } else if (blocked > 0) {
+        } else if (cannotExit > 0) {
+            status = 'unreachable';
+            statusText = '无法离场';
+        } else if (blocked > 0 && queuing === 0) {
             status = 'unreachable';
             statusText = '车位不可达';
         } else if (empty === 0 && queuing > 0) {
@@ -1617,6 +1627,8 @@ class ParkingLotSimulator {
     }
     
     addSimCar() {
+        if (this.entrances.length === 0) return;
+        
         const entrance = this.entrances[Math.floor(Math.random() * this.entrances.length)];
         const colors = ['#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96'];
         const evRatio = parseFloat(document.getElementById('evRatio').value) || 30;
@@ -1634,37 +1646,48 @@ class ParkingLotSimulator {
             entered: false,
             parked: false,
             exiting: false,
+            blocked: false,
             parkStartTime: 0,
             parkDuration: (parseFloat(document.getElementById('avgParkingTime').value) || 60) * (0.5 + Math.random()),
             route: [],
-            routeIndex: 0
+            routeIndex: 0,
+            entranceId: entrance.id
         });
     }
     
     updateSimCars() {
-        const emptySpots = this.parkingSpots.filter(s => !s.occupied);
+        const allAccessibleSpots = this.getAllAccessibleSpots();
         
         this.simCars.forEach(car => {
-            if (car.queuing && emptySpots.length > 0 && !car.blocked) {
-                if (this.roads.length === 0 && this.parkingSpots.length > 0) {
-                    car.blocked = true;
-                    car.queuing = false;
-                    this.simStats.blocked++;
+            if (car.queuing && !car.blocked) {
+                const carEntrance = this.entrances.find(e => e.id === car.entranceId);
+                
+                let accessibleSpots = [];
+                if (carEntrance) {
+                    accessibleSpots = this.getAccessibleSpotsFromEntrance(carEntrance);
+                }
+                
+                if (accessibleSpots.length === 0) {
+                    if (allAccessibleSpots.length === 0 && this.parkingSpots.length > 0) {
+                        car.blocked = true;
+                        car.queuing = false;
+                        this.simStats.blocked++;
+                    }
                     return;
                 }
                 
                 let targetSpot = null;
                 
                 if (car.isEV) {
-                    const chargingSpots = emptySpots.filter(s => s.type === 'charging');
+                    const chargingSpots = accessibleSpots.filter(s => s.type === 'charging');
                     if (chargingSpots.length > 0) {
                         targetSpot = chargingSpots[0];
                     } else {
-                        targetSpot = emptySpots[0];
+                        targetSpot = accessibleSpots[0];
                     }
                 } else {
-                    const normalSpots = emptySpots.filter(s => s.type !== 'charging');
-                    targetSpot = normalSpots.length > 0 ? normalSpots[0] : emptySpots[0];
+                    const normalSpots = accessibleSpots.filter(s => s.type !== 'charging');
+                    targetSpot = normalSpots.length > 0 ? normalSpots[0] : accessibleSpots[0];
                 }
                 
                 if (targetSpot) {
@@ -1691,7 +1714,7 @@ class ParkingLotSimulator {
                 }
             }
             
-            if (!car.queuing && !car.parked && car.route && car.route.length > 0) {
+            if (!car.queuing && !car.parked && !car.blocked && car.route && car.route.length > 0) {
                 if (car.routeIndex < car.route.length) {
                     const target = car.route[car.routeIndex];
                     const dx = target.x - car.x;
@@ -1718,33 +1741,51 @@ class ParkingLotSimulator {
                         car.y += dy / dist * 3;
                     }
                 }
-            } else if (!car.queuing && !car.parked) {
-                const dx = car.targetX - car.x;
-                const dy = car.targetY - car.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                
-                if (dist < 5) {
-                    car.parked = true;
-                    car.parkStartTime = this.simTime;
-                } else {
-                    car.x += dx / dist * 3;
-                    car.y += dy / dist * 3;
-                }
             }
             
-            if (car.parked && !car.exiting) {
+            if (car.parked && !car.exiting && !car.cannotExit) {
                 const parkTime = this.simTime - car.parkStartTime;
                 if (parkTime >= car.parkDuration) {
+                    const spot = this.parkingSpots.find(s => s.id === car.spotId);
+                    if (!spot) {
+                        car.exited = true;
+                        return;
+                    }
+                    
+                    let accessibleExit = null;
+                    if (this.exits.length > 0) {
+                        for (const exit of this.exits) {
+                            if (this.isExitAccessibleFromSpot(spot, exit)) {
+                                accessibleExit = exit;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (!accessibleExit && this.exits.length > 0) {
+                        car.cannotExit = true;
+                        this.simStats.blocked = (this.simStats.blocked || 0) + 1;
+                        return;
+                    }
+                    
                     car.exiting = true;
-                    const exit = this.exits.length > 0 ? 
-                        this.exits[Math.floor(Math.random() * this.exits.length)] : 
-                        { x: 50, y: 50 };
+                    const exit = accessibleExit || { x: 50, y: 50 };
                     car.targetX = exit.x;
                     car.targetY = exit.y;
+                    car.exitId = exit.id;
+                    
                     car.route = this.calculateRoute(
                         { x: car.x, y: car.y },
                         { x: car.targetX, y: car.targetY }
                     );
+                    
+                    if (!car.route || car.route.length < 2) {
+                        car.exiting = false;
+                        car.cannotExit = true;
+                        this.simStats.blocked = (this.simStats.blocked || 0) + 1;
+                        return;
+                    }
+                    
                     car.routeIndex = 0;
                 }
             }
@@ -1785,46 +1826,159 @@ class ParkingLotSimulator {
         this.simCars = this.simCars.filter(car => !car.exited);
     }
     
+    rectsIntersectOrTouch(a, b) {
+        const expand = 10;
+        return !(a.x + a.width + expand < b.x ||
+                 b.x + b.width + expand < a.x ||
+                 a.y + a.height + expand < b.y ||
+                 b.y + b.height + expand < a.y);
+    }
+    
+    roadsConnected(road1, road2) {
+        return this.rectsIntersectOrTouch(road1, road2);
+    }
+    
+    getConnectedRoads(startRoad) {
+        const visited = new Set();
+        const queue = [startRoad];
+        const connected = [];
+        
+        while (queue.length > 0) {
+            const current = queue.shift();
+            if (visited.has(current.id)) continue;
+            visited.add(current.id);
+            connected.push(current);
+            
+            this.roads.forEach(r => {
+                if (!visited.has(r.id) && this.roadsConnected(current, r)) {
+                    queue.push(r);
+                }
+            });
+        }
+        
+        return connected;
+    }
+    
+    isPointNearRoad(point, road, threshold = 80) {
+        const cx = road.x + road.width / 2;
+        const cy = road.y + road.height / 2;
+        const dx = Math.max(road.x - point.x, 0, point.x - (road.x + road.width));
+        const dy = Math.max(road.y - point.y, 0, point.y - (road.y + road.height));
+        return Math.sqrt(dx * dx + dy * dy) < threshold;
+    }
+    
+    getRoadsNearPoint(point, threshold = 80) {
+        return this.roads.filter(r => this.isPointNearRoad(point, r, threshold));
+    }
+    
+    isSpotAccessibleFromEntrance(spot, entrance) {
+        if (this.roads.length === 0) return false;
+        
+        const spotCenter = { x: spot.x + spot.width / 2, y: spot.y + spot.height / 2 };
+        const entrancePoint = { x: entrance.x, y: entrance.y };
+        
+        const roadsNearEntrance = this.getRoadsNearPoint(entrancePoint, 120);
+        if (roadsNearEntrance.length === 0) return false;
+        
+        const roadsNearSpot = this.getRoadsNearPoint(spotCenter, 120);
+        if (roadsNearSpot.length === 0) return false;
+        
+        for (const roadNearEntrance of roadsNearEntrance) {
+            const connectedRoads = this.getConnectedRoads(roadNearEntrance);
+            for (const roadNearSpot of roadsNearSpot) {
+                if (connectedRoads.some(r => r.id === roadNearSpot.id)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    isExitAccessibleFromSpot(spot, exit) {
+        if (this.roads.length === 0) return false;
+        
+        const spotCenter = { x: spot.x + spot.width / 2, y: spot.y + spot.height / 2 };
+        const exitPoint = { x: exit.x, y: exit.y };
+        
+        const roadsNearSpot = this.getRoadsNearPoint(spotCenter, 120);
+        if (roadsNearSpot.length === 0) return false;
+        
+        const roadsNearExit = this.getRoadsNearPoint(exitPoint, 120);
+        if (roadsNearExit.length === 0) return false;
+        
+        for (const roadNearSpot of roadsNearSpot) {
+            const connectedRoads = this.getConnectedRoads(roadNearSpot);
+            for (const roadNearExit of roadsNearExit) {
+                if (connectedRoads.some(r => r.id === roadNearExit.id)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    getAccessibleSpotsFromEntrance(entrance) {
+        return this.parkingSpots.filter(spot => 
+            !spot.occupied && this.isSpotAccessibleFromEntrance(spot, entrance)
+        );
+    }
+    
+    getAllAccessibleSpots() {
+        if (this.entrances.length === 0) return [];
+        const accessible = new Set();
+        
+        this.entrances.forEach(entrance => {
+            this.getAccessibleSpotsFromEntrance(entrance).forEach(spot => {
+                accessible.add(spot.id);
+            });
+        });
+        
+        return this.parkingSpots.filter(s => accessible.has(s.id) && !s.occupied);
+    }
+    
     calculateRoute(from, to) {
         const routePoints = [];
         
-        const nearbyRoads = this.roads.filter(r => {
-            const cx = r.x + r.width / 2;
-            const cy = r.y + r.height / 2;
-            return Math.abs(cx - from.x) < 300 && Math.abs(cy - from.y) < 300;
-        });
+        const roadsNearFrom = this.getRoadsNearPoint(from, 120);
+        const roadsNearTo = this.getRoadsNearPoint(to, 120);
         
-        if (nearbyRoads.length > 0) {
-            let nearestRoad = nearbyRoads[0];
-            let minDist = Infinity;
+        if (roadsNearFrom.length > 0 && roadsNearTo.length > 0) {
+            let connected = false;
+            let startRoad = roadsNearFrom[0];
+            let endRoad = roadsNearTo[0];
             
-            nearbyRoads.forEach(r => {
-                const cx = r.x + r.width / 2;
-                const cy = r.y + r.height / 2;
-                const dist = Math.abs(cx - from.x) + Math.abs(cy - from.y);
-                if (dist < minDist) {
-                    minDist = dist;
-                    nearestRoad = r;
+            for (const rf of roadsNearFrom) {
+                const connectedRoads = this.getConnectedRoads(rf);
+                for (const rt of roadsNearTo) {
+                    if (connectedRoads.some(r => r.id === rt.id)) {
+                        startRoad = rf;
+                        endRoad = rt;
+                        connected = true;
+                        break;
+                    }
                 }
+                if (connected) break;
+            }
+            
+            if (!connected) {
+                return null;
+            }
+            
+            routePoints.push({ 
+                x: startRoad.x + startRoad.width / 2, 
+                y: startRoad.y + startRoad.height / 2 
             });
             
-            const roadCenterX = nearestRoad.x + nearestRoad.width / 2;
-            const roadCenterY = nearestRoad.y + nearestRoad.height / 2;
-            
-            routePoints.push({ x: roadCenterX, y: roadCenterY });
-            
-            const targetNearRoad = this.roads.find(r => {
-                const cx = r.x + r.width / 2;
-                const cy = r.y + r.height / 2;
-                return Math.abs(cx - to.x) < 200 && Math.abs(cy - to.y) < 200;
-            });
-            
-            if (targetNearRoad && targetNearRoad.id !== nearestRoad.id) {
+            if (startRoad.id !== endRoad.id) {
                 routePoints.push({ 
-                    x: targetNearRoad.x + targetNearRoad.width / 2, 
-                    y: targetNearRoad.y + targetNearRoad.height / 2 
+                    x: endRoad.x + endRoad.width / 2, 
+                    y: endRoad.y + endRoad.height / 2 
                 });
             }
+        } else {
+            return null;
         }
         
         routePoints.push({ x: to.x, y: to.y });
