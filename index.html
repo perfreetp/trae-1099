@@ -13,6 +13,11 @@
             <span class="subtitle">停车场改造方案快速演示工具</span>
         </div>
         <div class="header-right">
+            <button id="btnUndo" class="btn btn-secondary" title="撤销 (Ctrl+Z)">↶ 撤销</button>
+            <button id="btnRedo" class="btn btn-secondary" title="重做 (Ctrl+Y)">↷ 重做</button>
+            <button id="btnImportJSON" class="btn btn-secondary">📥 导入JSON</button>
+            <button id="btnExportJSON" class="btn btn-secondary">📤 导出JSON</button>
+            <input type="file" id="fileInputJSON" accept=".json" style="display:none">
             <button id="btnSave" class="btn btn-secondary">💾 保存草稿</button>
             <button id="btnLoad" class="btn btn-secondary">📂 加载草稿</button>
             <button id="btnExport" class="btn btn-primary">📷 导出方案图</button>
@@ -60,6 +65,12 @@
                 <div class="batch-actions">
                     <button id="btnBatchCopy" class="btn btn-block btn-secondary">批量复制选中</button>
                     <button id="btnClearAll" class="btn btn-block btn-danger">清空画布</button>
+                </div>
+            </div>
+
+            <div class="panel" id="propertiesPanel" style="display:none">
+                <h3>⚙️ 属性面板</h3>
+                <div id="propertiesContent">
                 </div>
             </div>
 
@@ -127,6 +138,14 @@
         </main>
 
         <aside class="sidebar right-sidebar">
+            <div class="panel validation-panel">
+                <h3>✅ 方案校验</h3>
+                <div id="validationResults" class="validation-results">
+                    <div class="validation-empty">点击「开始校验」检测方案问题</div>
+                </div>
+                <button id="btnValidate" class="btn btn-block btn-secondary">🔍 开始校验</button>
+            </div>
+
             <div class="panel">
                 <h3>🚗 车辆流量</h3>
                 <div class="form-group">
@@ -156,6 +175,16 @@
                 <div class="form-group">
                     <label>平均停车时长 (分钟)</label>
                     <input type="number" id="avgParkingTime" value="60" min="5" max="480">
+                </div>
+                
+                <div class="form-group">
+                    <label>新能源汽车占比 (%)</label>
+                    <input type="number" id="evRatio" value="30" min="0" max="100">
+                </div>
+                
+                <div class="form-group">
+                    <label>平均充电量 (度/次)</label>
+                    <input type="number" id="avgCharge" value="20" min="1" max="100">
                 </div>
 
                 <button id="btnStartSimulation" class="btn btn-block btn-primary">▶️ 开始模拟</button>
@@ -218,6 +247,10 @@
                         <span class="stat-label">预计日收入</span>
                         <span class="stat-value" id="statDailyRevenue">¥0</span>
                     </div>
+                    <div class="stat-item stat-highlight">
+                        <span class="stat-label">充电收入</span>
+                        <span class="stat-value" id="statChargingRevenue">¥0</span>
+                    </div>
                     <div class="stat-item">
                         <span class="stat-label">高峰排队长度</span>
                         <span class="stat-value" id="statQueueLength">0</span>
@@ -263,6 +296,12 @@
                             <span id="afterRevenue">¥0</span>
                             <span id="diffRevenue" class="diff-positive">+¥0</span>
                         </div>
+                        <div class="comp-row">
+                            <span>充电收入(元)</span>
+                            <span id="beforeChargeRev">0</span>
+                            <span id="afterChargeRev">¥0</span>
+                            <span id="diffChargeRev" class="diff-positive">+¥0</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -273,6 +312,7 @@
         <div class="sim-header">
             <h3>🎬 实时模拟</h3>
             <div class="sim-controls">
+                <span id="simStatus" class="sim-status">运行中</span>
                 <span>速度:</span>
                 <input type="range" id="simSpeed" min="0.5" max="5" step="0.5" value="1">
                 <span id="simSpeedValue">1x</span>

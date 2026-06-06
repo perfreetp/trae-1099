@@ -644,3 +644,151 @@ body {
     background: #f5f5f5;
     font-weight: 600;
 }
+
+.stat-highlight {
+    border-color: #52c41a !important;
+    background: #f6ffed !important;
+}
+
+.stat-highlight .stat-value {
+    color: #52c41a !important;
+}
+
+.validation-results {
+    max-height: 180px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+.validation-empty {
+    text-align: center;
+    color: #999;
+    padding: 20px 10px;
+    font-size: 12px;
+}
+
+.validation-item {
+    padding: 8px 10px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.validation-item:hover {
+    opacity: 0.8;
+}
+
+.validation-error {
+    background: #fff1f0;
+    border: 1px solid #ffa39e;
+    color: #cf1322;
+}
+
+.validation-warning {
+    background: #fff7e6;
+    border: 1px solid #ffd591;
+    color: #d46b08;
+}
+
+.validation-info {
+    background: #e6f7ff;
+    border: 1px solid #91d5ff;
+    color: #0050b3;
+}
+
+.validation-success {
+    background: #f6ffed;
+    border: 1px solid #b7eb8f;
+    color: #389e0d;
+}
+
+.properties-panel .form-group {
+    margin-bottom: 10px;
+}
+
+.prop-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e8e8e8;
+}
+
+.prop-delete-btn {
+    background: #ff4d4f;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    flex: 1;
+}
+
+.prop-delete-btn:hover {
+    background: #ff7875;
+}
+
+.prop-apply-btn {
+    background: #1890ff;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    flex: 1;
+}
+
+.prop-apply-btn:hover {
+    background: #40a9ff;
+}
+
+.sim-status {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.sim-status.running {
+    background: #f6ffed;
+    color: #52c41a;
+}
+
+.sim-status.queue {
+    background: #fff7e6;
+    color: #fa8c16;
+}
+
+.sim-status.full {
+    background: #fff1f0;
+    color: #ff4d4f;
+}
+
+.sim-status.no-entrance {
+    background: #fff1f0;
+    color: #ff4d4f;
+}
+
+.route-line {
+    stroke: #1890ff;
+    stroke-width: 2;
+    stroke-dasharray: 5, 5;
+    fill: none;
+}
+
+.validation-highlight {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
