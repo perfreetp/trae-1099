@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>停车场规划模拟系统</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>🅿️ 停车场规划模拟系统</h1>
+            <span class="subtitle">停车场改造方案快速演示工具</span>
+        </div>
+        <div class="header-right">
+            <button id="btnSave" class="btn btn-secondary">💾 保存草稿</button>
+            <button id="btnLoad" class="btn btn-secondary">📂 加载草稿</button>
+            <button id="btnExport" class="btn btn-primary">📷 导出方案图</button>
+            <button id="btnReport" class="btn btn-success">📄 生成说明</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <aside class="sidebar left-sidebar">
+            <div class="panel">
+                <h3>🎨 车位编辑</h3>
+                <div class="tool-group">
+                    <button class="tool-btn active" data-tool="select">🖱️ 选择</button>
+                    <button class="tool-btn" data-tool="parking">🅿️ 绘制车位</button>
+                    <button class="tool-btn" data-tool="zone">📦 绘制分区</button>
+                    <button class="tool-btn" data-tool="copy">📋 批量复制</button>
+                    <button class="tool-btn" data-tool="delete">🗑️ 删除</button>
+                </div>
+                
+                <div class="form-group">
+                    <label>车位类型</label>
+                    <select id="parkingType">
+                        <option value="normal">普通车位</option>
+                        <option value="charging">充电车位 🔌</option>
+                        <option value="handicap">无障碍车位 ♿</option>
+                        <option value="compact">小型车位 🚗</option>
+                        <option value="large">大型车位 🚐</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>车位尺寸 (米)</label>
+                    <div class="size-inputs">
+                        <input type="number" id="spotWidth" value="2.5" step="0.1" min="1.5" max="4">
+                        <span>×</span>
+                        <input type="number" id="spotHeight" value="5.3" step="0.1" min="3" max="8">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>分区名称</label>
+                    <input type="text" id="zoneName" placeholder="如: A区">
+                </div>
+
+                <div class="batch-actions">
+                    <button id="btnBatchCopy" class="btn btn-block btn-secondary">批量复制选中</button>
+                    <button id="btnClearAll" class="btn btn-block btn-danger">清空画布</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>🛣️ 通道设置</h3>
+                <div class="tool-group">
+                    <button class="tool-btn" data-tool="road">➕ 添加通道</button>
+                    <button class="tool-btn" data-tool="oneway">➡️ 单向通道</button>
+                </div>
+                
+                <div class="form-group">
+                    <label>通道宽度 (米)</label>
+                    <input type="number" id="roadWidth" value="6" step="0.5" min="3" max="12">
+                </div>
+
+                <div class="form-group">
+                    <label>通道方向</label>
+                    <select id="roadDirection">
+                        <option value="horizontal">水平</option>
+                        <option value="vertical">垂直</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>🚪 入口出口</h3>
+                <div class="tool-group">
+                    <button class="tool-btn" data-tool="entrance">⬇️ 放置入口</button>
+                    <button class="tool-btn" data-tool="exit">⬆️ 放置出口</button>
+                    <button class="tool-btn" data-tool="gate">🚧 放置道闸</button>
+                    <button class="tool-btn" data-tool="camera">📹 放置摄像机</button>
+                </div>
+            </div>
+        </aside>
+
+        <main class="canvas-area">
+            <div class="canvas-toolbar">
+                <div class="canvas-info">
+                    <span>场地尺寸: <span id="canvasSize">50m × 30m</span></span>
+                    <span>比例: 1:100</span>
+                </div>
+                <div class="canvas-actions">
+                    <button id="btnZoomOut" class="btn-icon" title="缩小">➖</button>
+                    <span id="zoomLevel">100%</span>
+                    <button id="btnZoomIn" class="btn-icon" title="放大">➕</button>
+                    <button id="btnZoomFit" class="btn-icon" title="适应画布">⤢</button>
+                    <button id="btnGrid" class="btn-icon active" title="显示网格">#</button>
+                </div>
+            </div>
+            
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="parkingCanvas" width="1000" height="600"></canvas>
+                <div class="canvas-overlay" id="canvasOverlay"></div>
+            </div>
+
+            <div class="status-bar">
+                <div class="status-left">
+                    <span id="statusTool">当前工具: 选择</span>
+                    <span id="statusCoords">坐标: 0, 0</span>
+                </div>
+                <div class="status-right">
+                    <span id="statusCount">车位总数: 0 | 充电: 0 | 无障碍: 0</span>
+                </div>
+            </div>
+        </main>
+
+        <aside class="sidebar right-sidebar">
+            <div class="panel">
+                <h3>🚗 车辆流量</h3>
+                <div class="form-group">
+                    <label>高峰时段车流量 (辆/小时)</label>
+                    <input type="number" id="peakTraffic" value="200" min="0" max="2000">
+                </div>
+                
+                <div class="form-group">
+                    <label>平峰时段车流量 (辆/小时)</label>
+                    <input type="number" id="offPeakTraffic" value="80" min="0" max="1000">
+                </div>
+
+                <div class="form-group">
+                    <label>高峰时段</label>
+                    <div class="time-inputs">
+                        <input type="time" id="peakStart" value="08:00">
+                        <span>-</span>
+                        <input type="time" id="peakEnd" value="10:00">
+                    </div>
+                    <div class="time-inputs" style="margin-top: 5px;">
+                        <input type="time" id="peakStart2" value="17:00">
+                        <span>-</span>
+                        <input type="time" id="peakEnd2" value="19:00">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>平均停车时长 (分钟)</label>
+                    <input type="number" id="avgParkingTime" value="60" min="5" max="480">
+                </div>
+
+                <button id="btnStartSimulation" class="btn btn-block btn-primary">▶️ 开始模拟</button>
+                <button id="btnStopSimulation" class="btn btn-block btn-secondary" disabled>⏹️ 停止模拟</button>
+            </div>
+
+            <div class="panel">
+                <h3>💰 收费策略</h3>
+                <div class="form-group">
+                    <label>首小时收费 (元)</label>
+                    <input type="number" id="firstHourRate" value="8" min="0" step="0.5">
+                </div>
+                
+                <div class="form-group">
+                    <label>后续每小时 (元)</label>
+                    <input type="number" id="hourlyRate" value="5" min="0" step="0.5">
+                </div>
+
+                <div class="form-group">
+                    <label>单日最高 (元)</label>
+                    <input type="number" id="dailyMax" value="60" min="0" step="1">
+                </div>
+
+                <div class="form-group">
+                    <label>免费时长 (分钟)</label>
+                    <input type="number" id="freeMinutes" value="15" min="0" max="60">
+                </div>
+
+                <div class="form-group">
+                    <label>充电服务费 (元/度)</label>
+                    <input type="number" id="chargingFee" value="1.2" min="0" step="0.1">
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>📊 模拟结果</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">总车位</span>
+                        <span class="stat-value" id="statTotalSpots">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">充电车位</span>
+                        <span class="stat-value" id="statCharging">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">无障碍车位</span>
+                        <span class="stat-value" id="statHandicap">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">预计周转率</span>
+                        <span class="stat-value" id="statTurnover">0</span>
+                        <span class="stat-unit">次/天</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">日服务车辆</span>
+                        <span class="stat-value" id="statDailyCars">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">预计日收入</span>
+                        <span class="stat-value" id="statDailyRevenue">¥0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">高峰排队长度</span>
+                        <span class="stat-value" id="statQueueLength">0</span>
+                        <span class="stat-unit">辆</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">平均找位时间</span>
+                        <span class="stat-value" id="statFindTime">0</span>
+                        <span class="stat-unit">分钟</span>
+                    </div>
+                </div>
+
+                <div class="comparison-section">
+                    <h4>🔄 改造前后对比</h4>
+                    <div class="comparison-table">
+                        <div class="comp-row">
+                            <span>指标</span>
+                            <span>改造前</span>
+                            <span>改造后</span>
+                            <span>变化</span>
+                        </div>
+                        <div class="comp-row">
+                            <span>车位数量</span>
+                            <span><input type="number" id="beforeSpots" value="80" class="comp-input"></span>
+                            <span id="afterSpots">0</span>
+                            <span id="diffSpots" class="diff-positive">+0</span>
+                        </div>
+                        <div class="comp-row">
+                            <span>充电车位</span>
+                            <span><input type="number" id="beforeCharging" value="5" class="comp-input"></span>
+                            <span id="afterCharging">0</span>
+                            <span id="diffCharging" class="diff-positive">+0</span>
+                        </div>
+                        <div class="comp-row">
+                            <span>日服务量</span>
+                            <span id="beforeDaily">320</span>
+                            <span id="afterDaily">0</span>
+                            <span id="diffDaily" class="diff-positive">+0</span>
+                        </div>
+                        <div class="comp-row">
+                            <span>日收入(元)</span>
+                            <span id="beforeRevenue">2,560</span>
+                            <span id="afterRevenue">¥0</span>
+                            <span id="diffRevenue" class="diff-positive">+¥0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <div class="simulation-panel" id="simulationPanel" style="display: none;">
+        <div class="sim-header">
+            <h3>🎬 实时模拟</h3>
+            <div class="sim-controls">
+                <span>速度:</span>
+                <input type="range" id="simSpeed" min="0.5" max="5" step="0.5" value="1">
+                <span id="simSpeedValue">1x</span>
+                <button id="btnCloseSim" class="btn btn-small btn-secondary">关闭</button>
+            </div>
+        </div>
+        <div class="sim-stats">
+            <div class="sim-stat">
+                <span>模拟时间</span>
+                <strong id="simTime">08:00</strong>
+            </div>
+            <div class="sim-stat">
+                <span>在场车辆</span>
+                <strong id="simCars">0</strong>
+            </div>
+            <div class="sim-stat">
+                <span>已入场</span>
+                <strong id="simEntered">0</strong>
+            </div>
+            <div class="sim-stat">
+                <span>已离场</span>
+                <strong id="simExited">0</strong>
+            </div>
+            <div class="sim-stat">
+                <span>排队车辆</span>
+                <strong id="simQueue">0</strong>
+            </div>
+            <div class="sim-stat">
+                <span>空车位</span>
+                <strong id="simEmpty">0</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">提示</h3>
+                <button class="modal-close" id="modalClose">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modalCancel">取消</button>
+                <button class="btn btn-primary" id="modalConfirm">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
