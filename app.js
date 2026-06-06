@@ -456,7 +456,7 @@ class ParkingLotSimulator {
             const spot = this.parkingSpots[i];
             if (pos.x >= spot.x && pos.x <= spot.x + spot.width &&
                 pos.y >= spot.y && pos.y <= spot.y + spot.height) {
-                return { ...spot, type: 'parking', index: i };
+                return { ...spot, objType: 'parking', index: i };
             }
         }
         
@@ -464,7 +464,7 @@ class ParkingLotSimulator {
             const zone = this.zones[i];
             if (pos.x >= zone.x && pos.x <= zone.x + zone.width &&
                 pos.y >= zone.y && pos.y <= zone.y + zone.height) {
-                return { ...zone, type: 'zone', index: i };
+                return { ...zone, objType: 'zone', index: i };
             }
         }
         
@@ -472,35 +472,35 @@ class ParkingLotSimulator {
             const road = this.roads[i];
             if (pos.x >= road.x && pos.x <= road.x + road.width &&
                 pos.y >= road.y && pos.y <= road.y + road.height) {
-                return { ...road, type: 'road', index: i };
+                return { ...road, objType: 'road', index: i };
             }
         }
         
         for (let i = this.entrances.length - 1; i >= 0; i--) {
             const e = this.entrances[i];
             if (Math.abs(pos.x - e.x) < 20 && Math.abs(pos.y - e.y) < 20) {
-                return { ...e, type: 'entrance', index: i };
+                return { ...e, objType: 'entrance', index: i };
             }
         }
         
         for (let i = this.exits.length - 1; i >= 0; i--) {
             const e = this.exits[i];
             if (Math.abs(pos.x - e.x) < 20 && Math.abs(pos.y - e.y) < 20) {
-                return { ...e, type: 'exit', index: i };
+                return { ...e, objType: 'exit', index: i };
             }
         }
         
         for (let i = this.gates.length - 1; i >= 0; i--) {
             const g = this.gates[i];
             if (Math.abs(pos.x - g.x) < 20 && Math.abs(pos.y - g.y) < 20) {
-                return { ...g, type: 'gate', index: i };
+                return { ...g, objType: 'gate', index: i };
             }
         }
         
         for (let i = this.cameras.length - 1; i >= 0; i--) {
             const c = this.cameras[i];
             if (Math.abs(pos.x - c.x) < 20 && Math.abs(pos.y - c.y) < 20) {
-                return { ...c, type: 'camera', index: i };
+                return { ...c, objType: 'camera', index: i };
             }
         }
         
@@ -530,7 +530,8 @@ class ParkingLotSimulator {
         
         let html = '';
         
-        if (item.type === 'parking') {
+        if (item.objType === 'parking') {
+            const spotType = item.type;
             const zoneOptions = this.zones.map((z, i) => 
                 `<option value="${i}" ${item.zone === i ? 'selected' : ''}>${z.name}</option>`
             ).join('');
@@ -539,11 +540,11 @@ class ParkingLotSimulator {
                 <div class="form-group">
                     <label>车位类型</label>
                     <select id="propSpotType">
-                        <option value="normal" ${item.type === 'normal' ? 'selected' : ''}>普通车位</option>
-                        <option value="charging" ${item.type === 'charging' ? 'selected' : ''}>充电车位 🔌</option>
-                        <option value="handicap" ${item.type === 'handicap' ? 'selected' : ''}>无障碍车位 ♿</option>
-                        <option value="compact" ${item.type === 'compact' ? 'selected' : ''}>小型车位 🚗</option>
-                        <option value="large" ${item.type === 'large' ? 'selected' : ''}>大型车位 🚐</option>
+                        <option value="normal" ${spotType === 'normal' ? 'selected' : ''}>普通车位</option>
+                        <option value="charging" ${spotType === 'charging' ? 'selected' : ''}>充电车位 🔌</option>
+                        <option value="handicap" ${spotType === 'handicap' ? 'selected' : ''}>无障碍车位 ♿</option>
+                        <option value="compact" ${spotType === 'compact' ? 'selected' : ''}>小型车位 🚗</option>
+                        <option value="large" ${spotType === 'large' ? 'selected' : ''}>大型车位 🚐</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -566,7 +567,7 @@ class ParkingLotSimulator {
                     <button class="prop-delete-btn" onclick="window.app.deleteSelected()">删除</button>
                 </div>
             `;
-        } else if (item.type === 'road') {
+        } else if (item.objType === 'road') {
             html = `
                 <div class="form-group">
                     <label>通道类型</label>
@@ -591,7 +592,7 @@ class ParkingLotSimulator {
                     <button class="prop-delete-btn" onclick="window.app.deleteSelected()">删除</button>
                 </div>
             `;
-        } else if (item.type === 'zone') {
+        } else if (item.objType === 'zone') {
             html = `
                 <div class="form-group">
                     <label>分区名称</label>
@@ -635,7 +636,7 @@ class ParkingLotSimulator {
     }
     
     applySpotProperties() {
-        if (this.selectedItems.length !== 1 || this.selectedItems[0].type !== 'parking') return;
+        if (this.selectedItems.length !== 1 || this.selectedItems[0].objType !== 'parking') return;
         
         const item = this.selectedItems[0];
         const spot = this.parkingSpots[item.index];
@@ -653,7 +654,7 @@ class ParkingLotSimulator {
     }
     
     applyRoadProperties() {
-        if (this.selectedItems.length !== 1 || this.selectedItems[0].type !== 'road') return;
+        if (this.selectedItems.length !== 1 || this.selectedItems[0].objType !== 'road') return;
         
         const item = this.selectedItems[0];
         const road = this.roads[item.index];
@@ -673,7 +674,7 @@ class ParkingLotSimulator {
     }
     
     applyZoneProperties() {
-        if (this.selectedItems.length !== 1 || this.selectedItems[0].type !== 'zone') return;
+        if (this.selectedItems.length !== 1 || this.selectedItems[0].objType !== 'zone') return;
         
         const item = this.selectedItems[0];
         const zone = this.zones[item.index];
@@ -691,10 +692,10 @@ class ParkingLotSimulator {
         const item = this.selectedItems[0];
         let target;
         
-        if (item.type === 'entrance') target = this.entrances[item.index];
-        else if (item.type === 'exit') target = this.exits[item.index];
-        else if (item.type === 'gate') target = this.gates[item.index];
-        else if (item.type === 'camera') target = this.cameras[item.index];
+        if (item.objType === 'entrance') target = this.entrances[item.index];
+        else if (item.objType === 'exit') target = this.exits[item.index];
+        else if (item.objType === 'gate') target = this.gates[item.index];
+        else if (item.objType === 'camera') target = this.cameras[item.index];
         
         if (target) {
             target.name = document.getElementById('propMarkerName').value;
@@ -712,19 +713,19 @@ class ParkingLotSimulator {
     }
     
     deleteItem(item) {
-        if (item.type === 'parking') {
+        if (item.objType === 'parking') {
             this.parkingSpots.splice(item.index, 1);
-        } else if (item.type === 'zone') {
+        } else if (item.objType === 'zone') {
             this.zones.splice(item.index, 1);
-        } else if (item.type === 'road') {
+        } else if (item.objType === 'road') {
             this.roads.splice(item.index, 1);
-        } else if (item.type === 'entrance') {
+        } else if (item.objType === 'entrance') {
             this.entrances.splice(item.index, 1);
-        } else if (item.type === 'exit') {
+        } else if (item.objType === 'exit') {
             this.exits.splice(item.index, 1);
-        } else if (item.type === 'gate') {
+        } else if (item.objType === 'gate') {
             this.gates.splice(item.index, 1);
-        } else if (item.type === 'camera') {
+        } else if (item.objType === 'camera') {
             this.cameras.splice(item.index, 1);
         }
         this.selectedItems = [];
@@ -742,25 +743,25 @@ class ParkingLotSimulator {
         });
         
         sorted.forEach(item => {
-            if (item.type === 'parking') {
+            if (item.objType === 'parking') {
                 const idx = this.parkingSpots.findIndex(s => s.id === item.id);
                 if (idx >= 0) this.parkingSpots.splice(idx, 1);
-            } else if (item.type === 'zone') {
+            } else if (item.objType === 'zone') {
                 const idx = this.zones.findIndex(z => z.id === item.id);
                 if (idx >= 0) this.zones.splice(idx, 1);
-            } else if (item.type === 'road') {
+            } else if (item.objType === 'road') {
                 const idx = this.roads.findIndex(r => r.id === item.id);
                 if (idx >= 0) this.roads.splice(idx, 1);
-            } else if (item.type === 'entrance') {
+            } else if (item.objType === 'entrance') {
                 const idx = this.entrances.findIndex(e => e.id === item.id);
                 if (idx >= 0) this.entrances.splice(idx, 1);
-            } else if (item.type === 'exit') {
+            } else if (item.objType === 'exit') {
                 const idx = this.exits.findIndex(e => e.id === item.id);
                 if (idx >= 0) this.exits.splice(idx, 1);
-            } else if (item.type === 'gate') {
+            } else if (item.objType === 'gate') {
                 const idx = this.gates.findIndex(g => g.id === item.id);
                 if (idx >= 0) this.gates.splice(idx, 1);
-            } else if (item.type === 'camera') {
+            } else if (item.objType === 'camera') {
                 const idx = this.cameras.findIndex(c => c.id === item.id);
                 if (idx >= 0) this.cameras.splice(idx, 1);
             }
@@ -781,13 +782,13 @@ class ParkingLotSimulator {
     
     selectAll() {
         this.selectedItems = [
-            ...this.parkingSpots.map((s, i) => ({ ...s, type: 'parking', index: i })),
-            ...this.zones.map((z, i) => ({ ...z, type: 'zone', index: i })),
-            ...this.roads.map((r, i) => ({ ...r, type: 'road', index: i })),
-            ...this.entrances.map((e, i) => ({ ...e, type: 'entrance', index: i })),
-            ...this.exits.map((e, i) => ({ ...e, type: 'exit', index: i })),
-            ...this.gates.map((g, i) => ({ ...g, type: 'gate', index: i })),
-            ...this.cameras.map((c, i) => ({ ...c, type: 'camera', index: i }))
+            ...this.parkingSpots.map((s, i) => ({ ...s, objType: 'parking', index: i })),
+            ...this.zones.map((z, i) => ({ ...z, objType: 'zone', index: i })),
+            ...this.roads.map((r, i) => ({ ...r, objType: 'road', index: i })),
+            ...this.entrances.map((e, i) => ({ ...e, objType: 'entrance', index: i })),
+            ...this.exits.map((e, i) => ({ ...e, objType: 'exit', index: i })),
+            ...this.gates.map((g, i) => ({ ...g, objType: 'gate', index: i })),
+            ...this.cameras.map((c, i) => ({ ...c, objType: 'camera', index: i }))
         ];
         this.updatePropertiesPanel();
         this.render();
@@ -809,15 +810,15 @@ class ParkingLotSimulator {
             newItem.x += offset;
             newItem.y += offset;
             
-            if (item.type === 'parking') {
+            if (item.objType === 'parking') {
                 this.parkingSpots.push(newItem);
-                newItems.push({ ...newItem, type: 'parking', index: this.parkingSpots.length - 1 });
-            } else if (item.type === 'zone') {
+                newItems.push({ ...newItem, objType: 'parking', index: this.parkingSpots.length - 1 });
+            } else if (item.objType === 'zone') {
                 this.zones.push(newItem);
-                newItems.push({ ...newItem, type: 'zone', index: this.zones.length - 1 });
-            } else if (item.type === 'road') {
+                newItems.push({ ...newItem, objType: 'zone', index: this.zones.length - 1 });
+            } else if (item.objType === 'road') {
                 this.roads.push(newItem);
-                newItems.push({ ...newItem, type: 'road', index: this.roads.length - 1 });
+                newItems.push({ ...newItem, objType: 'road', index: this.roads.length - 1 });
             }
         });
         
@@ -856,15 +857,15 @@ class ParkingLotSimulator {
             newItem.x += offsetX;
             newItem.y += offsetY;
             
-            if (item.type === 'parking') {
+            if (item.objType === 'parking') {
                 this.parkingSpots.push(newItem);
-                newItems.push({ ...newItem, type: 'parking', index: this.parkingSpots.length - 1 });
-            } else if (item.type === 'zone') {
+                newItems.push({ ...newItem, objType: 'parking', index: this.parkingSpots.length - 1 });
+            } else if (item.objType === 'zone') {
                 this.zones.push(newItem);
-                newItems.push({ ...newItem, type: 'zone', index: this.zones.length - 1 });
-            } else if (item.type === 'road') {
+                newItems.push({ ...newItem, objType: 'zone', index: this.zones.length - 1 });
+            } else if (item.objType === 'road') {
                 this.roads.push(newItem);
-                newItems.push({ ...newItem, type: 'road', index: this.roads.length - 1 });
+                newItems.push({ ...newItem, objType: 'road', index: this.roads.length - 1 });
             }
         });
         
@@ -1117,7 +1118,11 @@ class ParkingLotSimulator {
         const ctx = this.ctx;
         
         this.simCars.forEach(car => {
-            ctx.fillStyle = car.color || '#1890ff';
+            if (car.blocked) {
+                ctx.fillStyle = '#ff4d4f';
+            } else {
+                ctx.fillStyle = car.color || '#1890ff';
+            }
             ctx.beginPath();
             ctx.arc(car.x, car.y, 8, 0, Math.PI * 2);
             ctx.fill();
@@ -1133,6 +1138,20 @@ class ParkingLotSimulator {
                 ctx.arc(car.x, car.y, 12, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.setLineDash([]);
+            }
+            
+            if (car.blocked) {
+                ctx.strokeStyle = '#ff4d4f';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([4, 2]);
+                ctx.beginPath();
+                ctx.arc(car.x, car.y, 14, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 10px Arial';
+                ctx.fillText('!', car.x - 3, car.y + 4);
             }
         });
     }
@@ -1165,7 +1184,7 @@ class ParkingLotSimulator {
             let x = item.x;
             let y = item.y;
             
-            if (['entrance', 'exit', 'gate', 'camera'].includes(item.type)) {
+            if (['entrance', 'exit', 'gate', 'camera'].includes(item.objType)) {
                 x = item.x - 15;
                 y = item.y - 15;
                 w = 30;
@@ -1192,7 +1211,7 @@ class ParkingLotSimulator {
             let x = item.x;
             let y = item.y;
             
-            if (['entrance', 'exit', 'gate', 'camera'].includes(item.type)) {
+            if (['entrance', 'exit', 'gate', 'camera'].includes(item.objType)) {
                 x = item.x - 15;
                 y = item.y - 15;
                 w = 30;
@@ -1273,6 +1292,12 @@ class ParkingLotSimulator {
         const beforeSpots = parseInt(document.getElementById('beforeSpots').value) || 0;
         const beforeCharging = parseInt(document.getElementById('beforeCharging').value) || 0;
         
+        const avgParkingTime = parseFloat(document.getElementById('avgParkingTime').value) || 60;
+        const turnoverRate = Math.round((1440 / avgParkingTime) * 10) / 10;
+        const chargingFee = parseFloat(document.getElementById('chargingFee').value) || 1.2;
+        const evRatio = parseFloat(document.getElementById('evRatio').value) || 30;
+        const avgCharge = parseFloat(document.getElementById('avgCharge').value) || 20;
+        
         document.getElementById('afterSpots').textContent = afterSpots;
         document.getElementById('afterCharging').textContent = afterCharging;
         document.getElementById('afterDaily').textContent = afterDailyCars;
@@ -1286,7 +1311,9 @@ class ParkingLotSimulator {
         const beforeRev = beforeDaily * 8;
         const diffRev = afterRevenue - beforeRev;
         
-        const beforeChargeRev = beforeCharging * 10 * 1.2;
+        const beforeEvCars = Math.round(beforeDaily * evRatio / 100);
+        const beforeChargingCars = Math.min(beforeEvCars, beforeCharging * turnoverRate * 0.8);
+        const beforeChargeRev = Math.round(beforeChargingCars * avgCharge * chargingFee);
         const diffChargeRev = afterChargeRev - beforeChargeRev;
         
         this.setDiff('diffSpots', diffSpots, '+');
@@ -1352,37 +1379,57 @@ class ParkingLotSimulator {
             issues.push({
                 type: 'warning',
                 message: `⚠️ ${narrowRoads.length} 条通道过窄（<4米），可能影响通行`,
-                items: narrowRoads.map(r => ({ ...r, type: 'road' }))
+                items: narrowRoads.map(r => ({ ...r, objType: 'road' }))
             });
-            this.highlightedItems.push(...narrowRoads.map(r => ({ ...r, type: 'road' })));
+            this.highlightedItems.push(...narrowRoads.map(r => ({ ...r, objType: 'road' })));
         }
         
-        const uncoveredEntrances = this.entrances.filter(e => {
-            const hasGate = this.gates.some(g => 
-                Math.abs(g.x - e.x) < 100 && Math.abs(g.y - e.y) < 100
-            );
-            return !hasGate;
-        });
-        if (uncoveredEntrances.length > 0 && this.gates.length > 0) {
+        if (this.entrances.length > 0 && this.gates.length === 0) {
             issues.push({
-                type: 'info',
-                message: `ℹ️ ${uncoveredEntrances.length} 个入口附近未检测到道闸`,
-                items: uncoveredEntrances.map(e => ({ ...e, type: 'entrance' }))
+                type: 'warning',
+                message: '⚠️ 未配置道闸设备：建议在入口处配置道闸',
+                items: this.entrances.map(e => ({ ...e, objType: 'entrance' }))
             });
+            this.highlightedItems.push(...this.entrances.map(e => ({ ...e, objType: 'entrance' })));
+        } else if (this.entrances.length > 0) {
+            const uncoveredEntrances = this.entrances.filter(e => {
+                const hasGate = this.gates.some(g => 
+                    Math.abs(g.x - e.x) < 100 && Math.abs(g.y - e.y) < 100
+                );
+                return !hasGate;
+            });
+            if (uncoveredEntrances.length > 0) {
+                issues.push({
+                    type: 'info',
+                    message: `ℹ️ ${uncoveredEntrances.length} 个入口附近未检测到道闸`,
+                    items: uncoveredEntrances.map(e => ({ ...e, objType: 'entrance' }))
+                });
+                this.highlightedItems.push(...uncoveredEntrances.map(e => ({ ...e, objType: 'entrance' })));
+            }
         }
         
-        const noCameraEntrances = this.entrances.filter(e => {
-            const hasCamera = this.cameras.some(c => 
-                Math.abs(c.x - e.x) < 150 && Math.abs(c.y - e.y) < 150
-            );
-            return !hasCamera;
-        });
-        if (noCameraEntrances.length > 0 && this.cameras.length > 0) {
+        if (this.entrances.length > 0 && this.cameras.length === 0) {
             issues.push({
-                type: 'info',
-                message: `ℹ️ ${noCameraEntrances.length} 个入口附近未检测到摄像机`,
-                items: noCameraEntrances.map(e => ({ ...e, type: 'entrance' }))
+                type: 'warning',
+                message: '⚠️ 未配置监控摄像机：建议在入口附近配置摄像机',
+                items: this.entrances.map(e => ({ ...e, objType: 'entrance' }))
             });
+            this.highlightedItems.push(...this.entrances.map(e => ({ ...e, objType: 'entrance' })));
+        } else if (this.entrances.length > 0) {
+            const noCameraEntrances = this.entrances.filter(e => {
+                const hasCamera = this.cameras.some(c => 
+                    Math.abs(c.x - e.x) < 150 && Math.abs(c.y - e.y) < 150
+                );
+                return !hasCamera;
+            });
+            if (noCameraEntrances.length > 0) {
+                issues.push({
+                    type: 'info',
+                    message: `ℹ️ ${noCameraEntrances.length} 个入口附近未检测到摄像机`,
+                    items: noCameraEntrances.map(e => ({ ...e, objType: 'entrance' }))
+                });
+                this.highlightedItems.push(...noCameraEntrances.map(e => ({ ...e, objType: 'entrance' })));
+            }
         }
         
         const handicapCount = this.parkingSpots.filter(s => s.type === 'handicap').length;
@@ -1425,11 +1472,11 @@ class ParkingLotSimulator {
                 if (overlap) {
                     if (!overlapSet.has(a.id)) {
                         overlapSet.add(a.id);
-                        overlaps.push({ ...a, type: 'parking', index: i });
+                        overlaps.push({ ...a, objType: 'parking', index: i });
                     }
                     if (!overlapSet.has(b.id)) {
                         overlapSet.add(b.id);
-                        overlaps.push({ ...b, type: 'parking', index: j });
+                        overlaps.push({ ...b, objType: 'parking', index: j });
                     }
                 }
             }
@@ -1463,16 +1510,11 @@ class ParkingLotSimulator {
     }
     
     startSimulation() {
-        if (this.entrances.length === 0) {
-            alert('请先放置至少一个入口！');
-            return;
-        }
-        
         this.simulationRunning = true;
         this.simTime = 8 * 60;
         this.simCars = [];
         this.routes = [];
-        this.simStats = { entered: 0, exited: 0 };
+        this.simStats = { entered: 0, exited: 0, blocked: 0 };
         
         document.getElementById('btnStartSimulation').disabled = true;
         document.getElementById('btnStopSimulation').disabled = false;
@@ -1525,18 +1567,25 @@ class ParkingLotSimulator {
         const occupied = this.parkingSpots.filter(s => s.occupied).length;
         const empty = this.parkingSpots.length - occupied;
         const queuing = this.simCars.filter(c => c.queuing).length;
+        const blocked = this.simCars.filter(c => c.blocked).length;
         
         document.getElementById('simCars').textContent = occupied;
         document.getElementById('simEmpty').textContent = empty;
         document.getElementById('simEntered').textContent = this.simStats.entered;
         document.getElementById('simExited').textContent = this.simStats.exited;
-        document.getElementById('simQueue').textContent = queuing;
+        document.getElementById('simQueue').textContent = queuing + blocked;
         
         let status = 'running';
         let statusText = '运行中';
         if (this.entrances.length === 0) {
             status = 'no-entrance';
             statusText = '无入口';
+        } else if (this.parkingSpots.length > 0 && this.roads.length === 0) {
+            status = 'no-road';
+            statusText = '无通行通道';
+        } else if (blocked > 0) {
+            status = 'unreachable';
+            statusText = '车位不可达';
         } else if (empty === 0 && queuing > 0) {
             status = 'full';
             statusText = '车位已满';
@@ -1596,7 +1645,14 @@ class ParkingLotSimulator {
         const emptySpots = this.parkingSpots.filter(s => !s.occupied);
         
         this.simCars.forEach(car => {
-            if (car.queuing && emptySpots.length > 0) {
+            if (car.queuing && emptySpots.length > 0 && !car.blocked) {
+                if (this.roads.length === 0 && this.parkingSpots.length > 0) {
+                    car.blocked = true;
+                    car.queuing = false;
+                    this.simStats.blocked++;
+                    return;
+                }
+                
                 let targetSpot = null;
                 
                 if (car.isEV) {
@@ -1612,6 +1668,18 @@ class ParkingLotSimulator {
                 }
                 
                 if (targetSpot) {
+                    car.route = this.calculateRoute(
+                        { x: car.x, y: car.y },
+                        { x: targetSpot.x + targetSpot.width / 2, y: targetSpot.y + targetSpot.height / 2 }
+                    );
+                    
+                    if (!car.route || car.route.length < 2) {
+                        car.blocked = true;
+                        car.queuing = false;
+                        this.simStats.blocked++;
+                        return;
+                    }
+                    
                     car.queuing = false;
                     car.entered = true;
                     this.simStats.entered++;
@@ -1619,11 +1687,6 @@ class ParkingLotSimulator {
                     car.spotId = targetSpot.id;
                     car.targetX = targetSpot.x + targetSpot.width / 2;
                     car.targetY = targetSpot.y + targetSpot.height / 2;
-                    
-                    car.route = this.calculateRoute(
-                        { x: car.x, y: car.y },
-                        { x: car.targetX, y: car.targetY }
-                    );
                     car.routeIndex = 0;
                 }
             }
@@ -1864,7 +1927,7 @@ class ParkingLotSimulator {
     
     exportJSON() {
         const data = {
-            version: '1.0',
+            version: '1.1',
             exportTime: new Date().toISOString(),
             parkingSpots: this.parkingSpots,
             zones: this.zones,
@@ -1889,7 +1952,12 @@ class ParkingLotSimulator {
                 spotWidth: document.getElementById('spotWidth').value,
                 spotHeight: document.getElementById('spotHeight').value,
                 roadWidth: document.getElementById('roadWidth').value,
-                roadDirection: document.getElementById('roadDirection').value
+                roadDirection: document.getElementById('roadDirection').value,
+                peakStart: document.getElementById('peakStart').value,
+                peakEnd: document.getElementById('peakEnd').value,
+                peakStart2: document.getElementById('peakStart2').value,
+                peakEnd2: document.getElementById('peakEnd2').value,
+                simulationSpeed: this.simulationSpeed
             }
         };
         
@@ -1918,8 +1986,18 @@ class ParkingLotSimulator {
                     if (s.spotHeight) document.getElementById('spotHeight').value = s.spotHeight;
                     if (s.roadWidth) document.getElementById('roadWidth').value = s.roadWidth;
                     if (s.roadDirection) document.getElementById('roadDirection').value = s.roadDirection;
+                    if (s.peakStart) document.getElementById('peakStart').value = s.peakStart;
+                    if (s.peakEnd) document.getElementById('peakEnd').value = s.peakEnd;
+                    if (s.peakStart2) document.getElementById('peakStart2').value = s.peakStart2;
+                    if (s.peakEnd2) document.getElementById('peakEnd2').value = s.peakEnd2;
+                    if (s.simulationSpeed) {
+                        this.simulationSpeed = parseFloat(s.simulationSpeed);
+                        document.getElementById('simSpeed').value = this.simulationSpeed;
+                        document.getElementById('simSpeedValue').textContent = this.simulationSpeed + 'x';
+                    }
                 }
                 
+                this.updateStats();
                 alert('方案导入成功！');
             } catch (err) {
                 alert('导入失败：文件格式不正确');
