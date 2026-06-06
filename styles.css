@@ -773,6 +773,21 @@ body {
     color: #ff4d4f;
 }
 
+.sim-status.no-road {
+    background: #fff1f0;
+    color: #ff4d4f;
+}
+
+.sim-status.unreachable {
+    background: #fff1f0;
+    color: #ff4d4f;
+}
+
+.sim-status.partial {
+    background: #fffbe6;
+    color: #faad14;
+}
+
 .route-line {
     stroke: #1890ff;
     stroke-width: 2;

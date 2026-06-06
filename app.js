@@ -1584,9 +1584,18 @@ class ParkingLotSimulator {
         
         let status = 'running';
         let statusText = '运行中';
+        const reachableEntrances = this.getReachableEntrances();
+        const allSpotsAccessible = this.getAllAccessibleSpots();
+        
         if (this.entrances.length === 0) {
             status = 'no-entrance';
             statusText = '无入口';
+        } else if (this.entrances.length > 0 && reachableEntrances.length === 0) {
+            status = 'unreachable';
+            statusText = '入口未连通';
+        } else if (this.entrances.length > 1 && reachableEntrances.length < this.entrances.length) {
+            status = 'partial';
+            statusText = `部分入口可用(${reachableEntrances.length}/${this.entrances.length})`;
         } else if (this.parkingSpots.length > 0 && this.roads.length === 0) {
             status = 'no-road';
             statusText = '无通行通道';
@@ -1629,7 +1638,10 @@ class ParkingLotSimulator {
     addSimCar() {
         if (this.entrances.length === 0) return;
         
-        const entrance = this.entrances[Math.floor(Math.random() * this.entrances.length)];
+        const reachableEntrances = this.getReachableEntrances();
+        if (reachableEntrances.length === 0) return;
+        
+        const entrance = reachableEntrances[Math.floor(Math.random() * reachableEntrances.length)];
         const colors = ['#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96'];
         const evRatio = parseFloat(document.getElementById('evRatio').value) || 30;
         const isEV = Math.random() * 100 < evRatio;
@@ -1647,6 +1659,7 @@ class ParkingLotSimulator {
             parked: false,
             exiting: false,
             blocked: false,
+            cannotExit: false,
             parkStartTime: 0,
             parkDuration: (parseFloat(document.getElementById('avgParkingTime').value) || 60) * (0.5 + Math.random()),
             route: [],
@@ -1752,27 +1765,30 @@ class ParkingLotSimulator {
                         return;
                     }
                     
+                    if (this.exits.length === 0) {
+                        car.cannotExit = true;
+                        this.simStats.blocked = (this.simStats.blocked || 0) + 1;
+                        return;
+                    }
+                    
                     let accessibleExit = null;
-                    if (this.exits.length > 0) {
-                        for (const exit of this.exits) {
-                            if (this.isExitAccessibleFromSpot(spot, exit)) {
-                                accessibleExit = exit;
-                                break;
-                            }
+                    for (const exit of this.exits) {
+                        if (this.isExitAccessibleFromSpot(spot, exit)) {
+                            accessibleExit = exit;
+                            break;
                         }
                     }
                     
-                    if (!accessibleExit && this.exits.length > 0) {
+                    if (!accessibleExit) {
                         car.cannotExit = true;
                         this.simStats.blocked = (this.simStats.blocked || 0) + 1;
                         return;
                     }
                     
                     car.exiting = true;
-                    const exit = accessibleExit || { x: 50, y: 50 };
-                    car.targetX = exit.x;
-                    car.targetY = exit.y;
-                    car.exitId = exit.id;
+                    car.targetX = accessibleExit.x;
+                    car.targetY = accessibleExit.y;
+                    car.exitId = accessibleExit.id;
                     
                     car.route = this.calculateRoute(
                         { x: car.x, y: car.y },
@@ -1827,15 +1843,20 @@ class ParkingLotSimulator {
     }
     
     rectsIntersectOrTouch(a, b) {
-        const expand = 10;
-        return !(a.x + a.width + expand < b.x ||
-                 b.x + b.width + expand < a.x ||
-                 a.y + a.height + expand < b.y ||
-                 b.y + b.height + expand < a.y);
+        return !(a.x + a.width < b.x ||
+                 b.x + b.width < a.x ||
+                 a.y + a.height < b.y ||
+                 b.y + b.height < a.y);
+    }
+    
+    rectsOverlapStrict(a, b) {
+        const overlapX = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+        const overlapY = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+        return overlapX > 5 && overlapY > 5;
     }
     
     roadsConnected(road1, road2) {
-        return this.rectsIntersectOrTouch(road1, road2);
+        return this.rectsOverlapStrict(road1, road2);
     }
     
     getConnectedRoads(startRoad) {
@@ -1859,28 +1880,35 @@ class ParkingLotSimulator {
         return connected;
     }
     
-    isPointNearRoad(point, road, threshold = 80) {
-        const cx = road.x + road.width / 2;
-        const cy = road.y + road.height / 2;
-        const dx = Math.max(road.x - point.x, 0, point.x - (road.x + road.width));
-        const dy = Math.max(road.y - point.y, 0, point.y - (road.y + road.height));
-        return Math.sqrt(dx * dx + dy * dy) < threshold;
+    isPointConnectedToRoad(point, road, expand = 15) {
+        return point.x >= road.x - expand && 
+               point.x <= road.x + road.width + expand &&
+               point.y >= road.y - expand && 
+               point.y <= road.y + road.height + expand;
     }
     
-    getRoadsNearPoint(point, threshold = 80) {
-        return this.roads.filter(r => this.isPointNearRoad(point, r, threshold));
+    isRectConnectedToRoad(rect, road) {
+        return this.rectsIntersectOrTouch(rect, road);
+    }
+    
+    getRoadsConnectedToPoint(point, expand = 15) {
+        return this.roads.filter(r => this.isPointConnectedToRoad(point, r, expand));
+    }
+    
+    getRoadsConnectedToRect(rect) {
+        return this.roads.filter(r => this.isRectConnectedToRoad(rect, r));
     }
     
     isSpotAccessibleFromEntrance(spot, entrance) {
         if (this.roads.length === 0) return false;
         
-        const spotCenter = { x: spot.x + spot.width / 2, y: spot.y + spot.height / 2 };
+        const spotRect = { x: spot.x, y: spot.y, width: spot.width, height: spot.height };
         const entrancePoint = { x: entrance.x, y: entrance.y };
         
-        const roadsNearEntrance = this.getRoadsNearPoint(entrancePoint, 120);
+        const roadsNearEntrance = this.getRoadsConnectedToPoint(entrancePoint, 25);
         if (roadsNearEntrance.length === 0) return false;
         
-        const roadsNearSpot = this.getRoadsNearPoint(spotCenter, 120);
+        const roadsNearSpot = this.getRoadsConnectedToRect(spotRect);
         if (roadsNearSpot.length === 0) return false;
         
         for (const roadNearEntrance of roadsNearEntrance) {
@@ -1897,14 +1925,15 @@ class ParkingLotSimulator {
     
     isExitAccessibleFromSpot(spot, exit) {
         if (this.roads.length === 0) return false;
+        if (this.exits.length === 0) return false;
         
-        const spotCenter = { x: spot.x + spot.width / 2, y: spot.y + spot.height / 2 };
+        const spotRect = { x: spot.x, y: spot.y, width: spot.width, height: spot.height };
         const exitPoint = { x: exit.x, y: exit.y };
         
-        const roadsNearSpot = this.getRoadsNearPoint(spotCenter, 120);
+        const roadsNearSpot = this.getRoadsConnectedToRect(spotRect);
         if (roadsNearSpot.length === 0) return false;
         
-        const roadsNearExit = this.getRoadsNearPoint(exitPoint, 120);
+        const roadsNearExit = this.getRoadsConnectedToPoint(exitPoint, 25);
         if (roadsNearExit.length === 0) return false;
         
         for (const roadNearSpot of roadsNearSpot) {
@@ -1925,6 +1954,27 @@ class ParkingLotSimulator {
         );
     }
     
+    getReachableEntrances() {
+        return this.entrances.filter(entrance => {
+            const entrancePoint = { x: entrance.x, y: entrance.y };
+            const roadsNearEntrance = this.getRoadsConnectedToPoint(entrancePoint, 25);
+            if (roadsNearEntrance.length === 0) return false;
+            
+            for (const road of roadsNearEntrance) {
+                const connectedRoads = this.getConnectedRoads(road);
+                for (const spot of this.parkingSpots) {
+                    const spotRect = { x: spot.x, y: spot.y, width: spot.width, height: spot.height };
+                    if (this.getRoadsConnectedToRect(spotRect).some(r => 
+                        connectedRoads.some(cr => cr.id === r.id)
+                    )) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
+    }
+    
     getAllAccessibleSpots() {
         if (this.entrances.length === 0) return [];
         const accessible = new Set();
@@ -1941,8 +1991,8 @@ class ParkingLotSimulator {
     calculateRoute(from, to) {
         const routePoints = [];
         
-        const roadsNearFrom = this.getRoadsNearPoint(from, 120);
-        const roadsNearTo = this.getRoadsNearPoint(to, 120);
+        const roadsNearFrom = this.getRoadsConnectedToPoint(from, 25);
+        const roadsNearTo = this.getRoadsConnectedToPoint(to, 25);
         
         if (roadsNearFrom.length > 0 && roadsNearTo.length > 0) {
             let connected = false;
